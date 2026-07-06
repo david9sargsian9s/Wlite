@@ -15,10 +15,7 @@ export class ShController {
             if (output === '__LOGOUT_USER__') {
                 try {
                     await tokenModel.deleteMany({ userID: currentUser.id }); 
-                
-                    res.clearCookie("refreshToken", { path: '/' });
-                    res.clearCookie("accessToken", { path: '/' });
-                
+
                     return res.status(200).json({ output: '__LOGOUT_USER__' });
                 } catch (tokenError) {
                     return res.status(500).json({ error: "Failed to securely terminate session in DB." });

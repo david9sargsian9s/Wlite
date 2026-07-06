@@ -63,16 +63,31 @@ class AuthController {
 
     async clearCookie(req : Request, res : Response) {
         try {
-            await req.app.locals.services.auth.clearCookie(req.cookies.refreshToken);
+            if (req.cookies && req.cookies.refreshToken) {
+                await req.app.locals.services.auth.clearCookie(req.cookies.refreshToken);
+            }
 
-            res.clearCookie("refreshToken");
+            res.clearCookie("refreshToken", {
+                path: '/',
+                httpOnly: true,
+                secure: false,
+                sameSite: "lax"
+            });
 
-            return res.status(200).json({ msg : "cookies deleted successfuly." })
+            res.clearCookie("accessToken", {
+                path: '/',
+                httpOnly: true,
+                secure: false,
+                sameSite: "lax"
+            });
+
+            return res.redirect('/login');
+
         } catch (error : unknown) {
             if (error instanceof Error) {
-                return res.status(400).json({ error: error.message });
+                console.error("Logout error:", error.message);
             }
-            res.status(400).json({ error : error })
+            return res.redirect('/login');
         }
     }
 }

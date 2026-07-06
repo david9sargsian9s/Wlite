@@ -28,8 +28,14 @@ term.onData(async (enteredText) => {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify({ command: cleanCommand })
         });
+
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
 
         const data = await response.json();
 
@@ -38,7 +44,7 @@ term.onData(async (enteredText) => {
                 term.clear(); 
             }
             // CHAINING STRUCTURE
-            else if(data.output === '__LOGOUT_USER__') {
+            else if (data.output === '__LOGOUT_USER__') {
                 window.accessToken = null; 
                 window.currentUser = null;
 
@@ -46,7 +52,7 @@ term.onData(async (enteredText) => {
                 term.writeln('\x1b[33mLogging out and securing session...\x1b[0m');
 
                 setTimeout(() => {
-                    window.location.href = '/login';
+                    window.location.href = '/auth/clear';
                 }, 1000);
                 return;
             } 
