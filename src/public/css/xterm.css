@@ -1,0 +1,85 @@
+.xterm {
+    cursor: text;
+    position: relative;
+    user-select: none;
+    -ms-user-select: none;
+    -webkit-user-select: none;
+}
+.xterm .xterm-helpers {
+    position: absolute;
+    top: 0;
+    z-index: -10;
+}
+.xterm .xterm-helper-textarea {
+    padding: 0;
+    border: 0;
+    margin: 0;
+    position: absolute;
+    opacity: 0;
+    left: -9999em;
+    top: 0;
+    width: 0;
+    height: 0;
+    z-index: -10;
+    overflow: hidden;
+    resize: none;
+}
+.xterm .composition-view {
+    background: #000;
+    color: #fff;
+    display: none;
+    position: absolute;
+    white-space: nowrap;
+    z-index: 1;
+}
+.xterm .composition-view.active {
+    display: block;
+}
+.xterm .xterm-viewport {
+    background-color: #000;
+    overflow-y: scroll;
+    cursor: default;
+    position: absolute;
+    right: 0;
+    left: 0;
+    top: 0;
+    bottom: 0;
+}
+.xterm .xterm-screen {
+    position: relative;
+}
+.xterm .xterm-accessibility,
+.xterm .xterm-accessibility-tree {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+}
+.xterm .xterm-char-measure-element {
+    position: absolute;
+    top: 0;
+    left: -9999em;
+    visibility: hidden;
+    white-space: pre;
+}
+.xterm.focus,
+.xterm:focus {
+    outline: none;
+}
+
+#term-line-input {
+    background: transparent !important;   
+    border: none !important;              
+    outline: none !important;             
+    box-shadow: none !important;          
+    color: #f1f5f9 !important;            
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace !important;
+    font-size: 14px !important;
+    padding: 0 !important;
+    margin: 0 0 0 4px !important;         
+    width: 70% !important;
+    caret-color: #3b82f6 !important; 
+}

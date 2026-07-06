@@ -1,0 +1,21 @@
+body { 
+    background-color: #0f1115;
+    margin: 0; 
+    padding: 24px; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.window-frame {
+    width: 100%;
+    max-width: 1000px;
+    height: 85vh;
+    border: 1px solid #262b37;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
