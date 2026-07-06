@@ -1,8 +1,35 @@
 import { Request, Response, NextFunction } from 'express';
 import { shService } from '../service/Sh.Service';
 import { UserModel } from '../model/userModel';
+import { tokenModel } from '../model/tokenModel';
 
 export class ShController {
+
+  async handleCommand(req: Request, res: Response) {
+        try {
+            const { command } = req.body;
+            const currentUser = res.locals.user; 
+
+            const output = await shService.executeCommand(command, currentUser);
+
+            if (output === '__LOGOUT_USER__') {
+                try {
+                    await tokenModel.deleteMany({ userID: currentUser.id }); 
+                
+                    res.clearCookie("refreshToken", { path: '/' });
+                    res.clearCookie("accessToken", { path: '/' });
+                
+                    return res.status(200).json({ output: '__LOGOUT_USER__' });
+                } catch (tokenError) {
+                    return res.status(500).json({ error: "Failed to securely terminate session in DB." });
+                }
+            }
+
+            return res.status(200).json({ output });
+        } catch (error) {
+            return res.status(400).json({ error: "Shell error" });
+        }
+    }
 
   public async renderShell(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

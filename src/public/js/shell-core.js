@@ -36,7 +36,21 @@ term.onData(async (enteredText) => {
         if (data && data.output) {
             if (data.output === '__CLEAR_SCREEN__') {
                 term.clear(); 
-            } else {
+            }
+            // CHAINING STRUCTURE
+            else if(data.output === '__LOGOUT_USER__') {
+                window.accessToken = null; 
+                window.currentUser = null;
+
+                term.clear();
+                term.writeln('\x1b[33mLogging out and securing session...\x1b[0m');
+
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 1000);
+                return;
+            } 
+            else {
                 const formattedOutput = data.output.replace(/\n/g, '\r\n');
                 term.writeln(formattedOutput);
             }

@@ -45,6 +45,9 @@ export class ShService {
         return `OS Node Version: ${process.version}\n` +
                `Platform: ${process.platform}\n` +
                `Uptime: ${Math.floor(process.uptime())}s`; 
+      
+      case 'logout':
+        return '__LOGOUT_USER__';
     }
 
     // --- LEVEL 2: MODERATOR AND ADMINISTRATOR TEAMS ---
