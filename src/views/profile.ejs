@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WLite - Profile Settings</title>
+    <link rel="stylesheet" href="/css/profile.css" />
+</head>
+<body>
+
+    <div class="profile-card">
+        <h2>Account Settings</h2>
+        <p class="subtitle">Manage your Core Web OS Profile</p>
+
+        <div id="alertBox" style="display: none;"></div>
+
+        <div class="info-group">
+            <div class="info-item">
+                <span class="info-label">Username:</span>
+                <span class="info-value"><%= user.name %></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Email Address:</span>
+                <span class="info-value"><%= user.email %></span>
+            </div>
+        </div>
+
+        <form id="deleteAccountForm" onsubmit="handleDelete(event)">
+            <label for="password">Confirm Password to Delete Account</label>
+            <input 
+                type="password" 
+                id="password" 
+                name="password" 
+                placeholder="Enter your security password" 
+                required
+            >
+            <button type="submit" class="btn-danger">Permanently Delete Account</button>
+        </form>
+
+        <div class="footer-link">
+            <a href="/">Back to Terminal Shell</a>
+        </div>
+    </div>
+    <script src="/js/profile.js"></script>
+</body>
+</html>

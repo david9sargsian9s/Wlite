@@ -56,6 +56,15 @@ term.onData(async (enteredText) => {
                 }, 1000);
                 return;
             } 
+            // NEW: Intercepting the visit command signals smoothly
+            else if (data.output.startsWith('__REDIRECT:')) {
+                const targetUrl = data.output.replace('__REDIRECT:', '').replace('__', '');
+                term.writeln(`\x1b[32mOpening subsystem path: ${targetUrl}...\x1b[0m`);
+                setTimeout(() => {
+                    window.location.href = targetUrl;
+                }, 800);
+                return;
+            }
             else {
                 const formattedOutput = data.output.replace(/\n/g, '\r\n');
                 term.writeln(formattedOutput);

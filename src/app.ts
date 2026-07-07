@@ -12,6 +12,7 @@ import usersRouter from './routes/users';
 import authRouter from './routes/auth';
 import productRouter from './routes/product';
 import shellRouter from './routes/sh';
+import ProfileRouter from './routes/profile';
 
 import { UserModel } from './model/userModel';
 import { tokenModel } from './model/tokenModel';
@@ -73,6 +74,7 @@ app.use('/', shellRouter);
 app.use('/', usersRouter);
 app.use('/auth', authRouter);
 app.use('/', productRouter);
+app.use('/', ProfileRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req : Request, res : Response, next : NextFunction) {
