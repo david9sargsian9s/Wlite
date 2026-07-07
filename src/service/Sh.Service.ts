@@ -23,18 +23,40 @@ export class ShService {
     // --- LEVEL 1: PUBLIC COMMANDS ---
     switch (cmd) {
       case 'help':
-        let helpText = 'Web OS Available commands:\n' +
-                       '  help               - Show this manual\n' +
-                       '  whoami             - Show current active user\n' +
-                       '  sysinfo            - Get server environment stats\n' +
-                       '  visit <endpoint>   - Fast navigation (e.g., visit /profile)';
+        // Base system documentation available to all authenticated operators
+        let helpText = 
+          '\x1b[36m=================== WEB OS CORE SYSTEM MANUAL ===================\x1b[0m\n\n' +
+          '\x1b[33m[ PUBLIC SUBSYSTEM COMMANDS ]\x1b[0m\n' +
+          '  \x1b[32mhelp\x1b[0m               - Display this comprehensive system manual architecture.\n' +
+          '  \x1b[32mwhoami\x1b[0m             - Inspect current active session identity, UID, and role.\n' +
+          '  \x1b[32msysinfo\x1b[0m            - Extract server-side environment architecture, uptime & node telemetry.\n' +
+          '  \x1b[32mclear\x1b[0m              - Wipe the current terminal viewport memory buffer.\n' +
+          '  \x1b[32mlogout\x1b[0m             - Securely terminate session access tokens and clear cookie storage.\n' +
+          '  \x1b[32mvisit <path>\x1b[0m       - Fast-travel UI engine route controller execution.\n' +
+          '                       \x1b[90mExample: visit /profile\x1b[0m\n' +
+          '  \x1b[32mrmaccount\x1b[0m          - Initiate secure identity destruction guidance guidelines.\n';
         
+        // Elevated administration manual injected dynamically based on security tokens
         if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
-          helpText += '\n\n[Management Commands]:\n' +
-                      '  users              - List registered accounts (Moderator/Admin)\n' +
-                      '  ban                - Ban user by email (Admin only)\n' +
-                      '  admin              - CLI Administration Tool Suite (Admin only)';
+          helpText += 
+            '\n\x1b[35m[ ELEVATED PRIVILEGE COMMANDS ]\x1b[0m\n' +
+            '  \x1b[32musers\x1b[0m              - Fetch and audit list of registered ecosystem accounts (Max: 10).\n';
+            
+          if (currentUser.role === 'admin') {
+            helpText +=
+              '  \x1b[32mban <email>\x1b[0m        - Force-isolate malicious actor email and invalidate active access tokens.\n' +
+              '                       \x1b[90mExample: ban user@target.io\x1b[0m\n\n' +
+              '\x1b[31m[ ROOT ADMINISTRATION ENGINE (admin subcommands) ]\x1b[0m\n' +
+              '  \x1b[34madmin\x1b[0m              - Access comprehensive root administrative pipeline controls.\n' +
+              '  \x1b[34madmin user delete <email>\x1b[0m    - Completely erase a user account record from database stores.\n' +
+              '  \x1b[34madmin user role <email> <r>\x1b[0m  - Overwrite account privilege access mapping.\n' +
+              '                                 \x1b[90mRoles: user | moderator | admin\x1b[0m\n' +
+              '  \x1b[34madmin product add <n> <val>\x1b[0m  - Append unique deployment commercial assets into warehouse storage.\n' +
+              '  \x1b[34madmin product rm <db_id>\x1b[0m     - Purge commercial item from web store catalogues.\n';
+          }
         }
+        
+        helpText += '\n\x1b[36m=================================================================\x1b[0m';
         return helpText;
 
       case 'clear':
