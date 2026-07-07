@@ -65,6 +65,34 @@ term.onData(async (enteredText) => {
                 }, 800);
                 return;
             }
+            else if (data.output === '__SHUTDOWN_OS__') {
+                term.writeln('\x1b[31mShutting down core-sh engine...\x1b[0m');
+                    
+                setTimeout(() => {
+                    // 1. Try to close the browser tab natively
+                    window.close();
+                
+                    // 2. Fallback: If the browser blocked window.close(), simulate system power off
+                    document.body.innerHTML = `
+                        <div style="
+                            background: #000; 
+                            color: #333; 
+                            width: 100vw; 
+                            height: 100vh; 
+                            display: flex; 
+                            flex-direction: column;
+                            justify-content: center; 
+                            align-items: center; 
+                            font-family: monospace;
+                            user-select: none;
+                        ">
+                            <p style="font-size: 1.5rem; margin-bottom: 10px;">[ System Power Off ]</p>
+                            <p style="color: #222; font-size: 0.9rem;">It is now safe to close your browser tab.</p>
+                        </div>
+                    `;
+                }, 1000);
+                return;
+            }
             else {
                 const formattedOutput = data.output.replace(/\n/g, '\r\n');
                 term.writeln(formattedOutput);
