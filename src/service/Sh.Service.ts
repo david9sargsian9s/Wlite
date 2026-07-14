@@ -2,6 +2,7 @@ import { UserModel } from '../model/userModel';
 import { tokenModel } from '../model/tokenModel';
 import { productModel } from '../model/productModel';
 import { backupModel } from '../model/backupModel';
+import { VfsService } from './vfs.service';
 
 interface IShellUser {
   id: string;
@@ -88,6 +89,49 @@ export class ShService {
 
       case 'exit':
         return '__SHUTDOWN_OS__';
+    }
+
+    // -- VIRTUAL FILE SYSTEM CONNECTING AND MANIPULATIONS (IMPORTANT!) --
+
+    if (cmd === 'wfs') {
+      const subCommand = args[1]?.toLowerCase();
+
+      if (!subCommand) {
+        return '\x1b[31mUsage: wfs connect\x1b[0m';
+      }
+    
+      if (cmd === 'wfs') {
+        const subCommand = args[1]?.toLowerCase();
+
+        if (!subCommand || subCommand === 'help') {
+          return '\x1b[36m=================== WFS SUBSYSTEM MANUAL ===================\x1b[0m\n\n' +
+                 '\x1b[33m[ DECENTRALIZED STORAGE ENGINE v0.2 ]\x1b[0m\n' +
+                 '  \x1b[32mwfs help\x1b[0m             - Display this decentralized file system documentation.\n' +
+                 '  \x1b[32mwfs connect\x1b[0m          - Initialize secure OAuth2 handshake with your Google Drive.\n' +
+                 '  \x1b[32mwfs ls\x1b[0m               - Fetch and directory-audit files saved inside Web OS vault.\n' +
+                 '  \x1b[32mwfs upload <file>\x1b[0m    - Pipe local asset payload directly into personal cloud storage.\n' +
+                 '  \x1b[32mwfs cat <file_id>\x1b[0m    - Download cloud asset and stream content into terminal memory.\n' +
+                 '  \x1b[32mwfs rm <file_id>\x1b[0m     - Purge selected unique asset completely from cloud nodes.\n' +
+                 '  \x1b[32mwfs df\x1b[0m               - Track cloud storage telemetry, free space, and allocation limits.\n\n' +
+                 '\x1b[90m⚠️  Notice: Scope isolated to drive.file. Web OS has zero visibility of your personal data.\x1b[0m\n' +
+                 '\x1b[36m============================================================\x1b[0m';
+        }
+      }
+
+      if (subCommand === 'connect') {
+        const alreadyLinked = await VfsService.isConnected(currentUser.id);
+        if (alreadyLinked) {
+          return '\x1b[32m[WFS SUCCESS]: Google Drive is already linked and active on this profile.\x1b[0m';
+        }
+      
+        // Generate a URL. Since this is a backend, the method will immediately create a link with state=currentUser.id
+        const authUrl = VfsService.generateAuthUrl(currentUser.id);
+      
+        // We return a special initialization marker to the frontend
+        return `__WFS_OAUTH_INIT:${authUrl}__`;
+      }
+    
+      return `\x1b[31mcore-sh: Unknown wfs subcommand: ${subCommand}\x1b[0m`;
     }
 
     // --- LEVEL 2: MODERATOR AND ADMINISTRATOR TEAMS ---

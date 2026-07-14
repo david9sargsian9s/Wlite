@@ -65,6 +65,27 @@ term.onData(async (enteredText) => {
                 }, 800);
                 return;
             }
+            else if (data.output.startsWith('__REDIRECT:')) {
+                const targetUrl = data.output.replace('__REDIRECT:', '').replace('__', '');
+                term.writeln(`\x1b[32mOpening subsystem path: ${targetUrl}...\x1b[0m`);
+                setTimeout(() => { window.location.href = targetUrl; }, 800);
+                return;
+            }
+            // >>> OUR NEW IMPLEMENTED HOOK FOR OUT CHANNEL <<<
+            else if (data.output.startsWith('__WFS_OAUTH_INIT:')) {
+                const authUrl = data.output.replace('__WFS_OAUTH_INIT:', '').replace('__', '');
+
+                term.writeln('\r\n\x1b[33m⚠️  WARNING: Connect a clean Google Drive account for better privacy.\x1b[0m');
+                term.writeln('\x1b[32m[WFS]: Launching secure external Google OAuth2 pipeline...\x1b[0m');
+
+                // Gently open the Google authorization window in a new tab after a second
+                setTimeout(() => {
+                    window.open(authUrl, '_blank');
+                }, 1000);
+
+                term.write(`\r\n${username}:~$ `);
+                return;
+            }
             else if (data.output === '__SHUTDOWN_OS__') {
                 term.writeln('\x1b[31mShutting down core-sh engine...\x1b[0m');
                     

@@ -1,6 +1,13 @@
 import { Schema, model, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+interface IGoogleDriveTokens {
+  accessToken: string | null;
+  refreshToken: string | null;
+  expiryDate: number | null;
+  isConnected: boolean;
+}
+
 // 1. Interface describing user fields in the database
 export interface IUser {
   name: string;
@@ -10,6 +17,7 @@ export interface IUser {
   password: string;
   role: 'user' | 'admin' | 'moderator';
   status: 'active' | 'banned' | 'pending';
+  googleDrive?: IGoogleDriveTokens;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -88,7 +96,13 @@ const userSchema = new Schema<IUserDocument>(
       type: String,
       enum: ['active', 'banned', 'pending'],
       default: 'active'
-    }
+    },
+    googleDrive: {
+      accessToken: { type: String, default: null },
+      refreshToken: { type: String, default: null },
+      expiryDate: { type: Number, default: null },
+      isConnected: { type: Boolean, default: false }
+  },
   },
   {
     versionKey: false,
