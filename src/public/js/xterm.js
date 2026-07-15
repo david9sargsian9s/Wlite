@@ -6,15 +6,15 @@ window.Terminal = class {
     }
 
     open(element) {
-    this.container = element;
-    this.container.classList.add('xterm');
-    this.container.style.backgroundColor = '#12141a';
-    this.container.style.color = '#f1f5f9';
-    this.container.style.overflowY = 'auto';
-    this.container.style.whiteSpace = 'pre-wrap';
-    this.container.style.padding = '16px';
-    this.container.style.height = '100%';
-    this.container.style.boxSizing = 'border-box';
+        this.container = element;
+        this.container.classList.add('xterm');
+        this.container.style.backgroundColor = '#12141a';
+        this.container.style.color = '#f1f5f9';
+        this.container.style.overflowY = 'auto';
+        this.container.style.whiteSpace = 'pre-wrap';
+        this.container.style.padding = '16px';
+        this.container.style.height = '100%';
+        this.container.style.boxSizing = 'border-box';
 
         this.container.addEventListener('click', () => {
             const input = document.getElementById('term-line-input');
@@ -25,8 +25,9 @@ window.Terminal = class {
     write(text) {
         if (!this.container) return;
         let formatted = text
-            .replace(/\x1b\[31m/g, '<span style="color:#ff3333">')
-            .replace(/\x1b\[32m/g, '<span style="color:#33ff33">')
+            .replace(/\x1b\[31m/g, '<span style="color:#ff3333">') // Красный
+            .replace(/\x1b\[32m/g, '<span style="color:#33ff33">') // Зелёный
+            .replace(/\x1b\[34m/g, '<span style="color:#3399ff">') // Синий
             .replace(/\x1b\[0m/g, '</span>')
             .replace(/\r\n/g, '<br>')
             .replace(/\n/g, '<br>');

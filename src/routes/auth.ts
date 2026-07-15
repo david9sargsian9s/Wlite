@@ -22,9 +22,9 @@ router.get('/getAccess', getRefreshFromCheck, auth.getNewAccessToken);
 router.get("/clear", auth.clearCookie);
 
 // The route that our CLI command `wfs connect` will invoke
-router.get('/auth/google', getAccessFromCheck, getGoogleAuthUrl);
+router.get('/api/auth/google', getAccessFromCheck, getGoogleAuthUrl);
 
 // The route Google will return the user to after verifying access rights
-router.get('/auth/google/callback', handleGoogleCallback);
+router.get('/api/auth/google/callback', handleGoogleCallback);
 
 export default router;

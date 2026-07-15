@@ -72,6 +72,7 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use('/', shellRouter);
 app.use('/', usersRouter);
+app.use('/', authRouter);
 app.use('/auth', authRouter);
 app.use('/', productRouter);
 app.use('/', ProfileRouter);

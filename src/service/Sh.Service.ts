@@ -2,7 +2,9 @@ import { UserModel } from '../model/userModel';
 import { tokenModel } from '../model/tokenModel';
 import { productModel } from '../model/productModel';
 import { backupModel } from '../model/backupModel';
+import { VfsNodeModel } from '../model/vfsNodeModel';
 import { VfsService } from './vfs.service';
+import { Types } from 'mongoose';
 
 interface IShellUser {
   id: string;
@@ -10,11 +12,15 @@ interface IShellUser {
 }
 
 export class ShService {
-  public async executeCommand(rawCommand: string, currentUser?: IShellUser): Promise<string> {
-    if (!rawCommand) return '';
+  public async executeCommand(
+    rawCommand: string, 
+    currentUser?: any, 
+    currentDirId: string | null = null
+  ): Promise<{ output: string; newDirId?: string | null }> {
+    if (!rawCommand) return { output: '' };
 
     if (!currentUser) {
-      return '\x1b[31mcore-sh: Unauthorized access.\x1b[0m';
+      return { output: '\x1b[31mcore-sh: Unauthorized access.\x1b[0m' };
     }
 
     const args = rawCommand.trim().split(/\s+/);
@@ -61,50 +67,89 @@ export class ShService {
         }
         
         helpText += '\n\x1b[36m=================================================================\x1b[0m';
-        return helpText;
+        return { output: helpText };
 
       case 'clear':
-        return '__CLEAR_SCREEN__';  
+        return { output: '__CLEAR_SCREEN__' };  
 
       case 'whoami':
-        return `User ID: ${currentUser.id}\nRole: [${currentUser.role}] (authenticated)`;
+        return { output: `User ID: ${currentUser.id}\nRole: [${currentUser.role}] (authenticated)` };
 
       case 'sysinfo':
-        return `OS Node Version: ${process.version}\n` +
-               `Platform: ${process.platform}\n` +
-               `Uptime: ${Math.floor(process.uptime())}s`; 
+        return { 
+          output: `OS Node Version: ${process.version}\n` +
+                  `Platform: ${process.platform}\n` +
+                  `Uptime: ${Math.floor(process.uptime())}s` 
+        }; 
       
       case 'logout':
-        return '__LOGOUT_USER__';
+        return { output: '__LOGOUT_USER__' };
 
       case 'rmaccount':
-        return 'Please visit /profile to safely and delete your account.';
+        return { output: 'Please visit /profile to safely and delete your account.' };
 
       case 'visit':
         const endpoint = args[1];
         if (!endpoint) {
-          return '\x1b[31mUsage: visit <endpoint> (e.g., visit /profile)\x1b[0m';
+          return { output: '\x1b[31mUsage: visit <endpoint> (e.g., visit /profile)\x1b[0m' };
         }
-        return `__REDIRECT:${endpoint}__`;
+        return { output: `__REDIRECT:${endpoint}__` };
 
       case 'exit':
-        return '__SHUTDOWN_OS__';
+        return { output: '__SHUTDOWN_OS__' };
+
+      case 'pwd':
+        try {
+          const path = await VfsService.getAbsolutePath(currentUser.id, currentDirId);
+          return { output: path };
+        } catch (error: any) {
+          return { output: `\x1b[31m[ERROR]: pwd failed: ${error.message}\x1b[0m` };
+        }
+
+      case 'cd':
+        const targetPath = args[1];
+        if (!targetPath) {
+          return { output: '', newDirId: null };
+        }
+        try {
+          const cdResult = await VfsService.cd(currentUser.id, currentDirId, targetPath);
+          if (cdResult.error) {
+            return { output: cdResult.error, newDirId: currentDirId };
+          }
+          return { output: '', newDirId: cdResult.newDirId };
+        } catch (error: any) {
+          return { output: `\x1b[31m[ERROR]: cd failed: ${error.message}\x1b[0m`, newDirId: currentDirId };
+        }
+
+      case 'mkdir':
+        const dirName = args[1];
+        if (!dirName) {
+          return { output: '\x1b[31mUsage: mkdir <directory_name>\x1b[0m' };
+        }
+        try {
+          const mkdirResult = await VfsService.mkdir(currentUser.id, dirName, currentDirId);
+          return { output: mkdirResult };
+        } catch (error: any) {
+          return { output: `\x1b[31m[ERROR]: mkdir failed: ${error.message}\x1b[0m` };
+        }
+
+      case 'ls':
+        try {
+          const lsResult = await VfsService.ls(currentUser.id, currentDirId);
+          return { output: lsResult };
+        } catch (error: any) {
+          return { output: `\x1b[31m[ERROR]: ls failed: ${error.message}\x1b[0m` };
+        }
     }
 
-    // -- VIRTUAL FILE SYSTEM CONNECTING AND MANIPULATIONS (IMPORTANT!) --
-
+    // -- VIRTUAL FILE SYSTEM CONNECTING AND MANIPULATIONS (WFS) --
     if (cmd === 'wfs') {
       const subCommand = args[1]?.toLowerCase();
 
-      if (!subCommand) {
-        return '\x1b[31mUsage: wfs connect\x1b[0m';
-      }
-    
-      if (cmd === 'wfs') {
-        const subCommand = args[1]?.toLowerCase();
-
-        if (!subCommand || subCommand === 'help') {
-          return '\x1b[36m=================== WFS SUBSYSTEM MANUAL ===================\x1b[0m\n\n' +
+      // Base WFS manual
+      if (!subCommand || subCommand === 'help') {
+        return {
+          output: '\x1b[36m=================== WFS SUBSYSTEM MANUAL ===================\x1b[0m\n\n' +
                  '\x1b[33m[ DECENTRALIZED STORAGE ENGINE v0.2 ]\x1b[0m\n' +
                  '  \x1b[32mwfs help\x1b[0m             - Display this decentralized file system documentation.\n' +
                  '  \x1b[32mwfs connect\x1b[0m          - Initialize secure OAuth2 handshake with your Google Drive.\n' +
@@ -114,30 +159,131 @@ export class ShService {
                  '  \x1b[32mwfs rm <file_id>\x1b[0m     - Purge selected unique asset completely from cloud nodes.\n' +
                  '  \x1b[32mwfs df\x1b[0m               - Track cloud storage telemetry, free space, and allocation limits.\n\n' +
                  '\x1b[90m⚠️  Notice: Scope isolated to drive.file. Web OS has zero visibility of your personal data.\x1b[0m\n' +
-                 '\x1b[36m============================================================\x1b[0m';
-        }
+                 '\x1b[36m============================================================\x1b[0m'
+        };
       }
 
+      // 1. CONNECT TO GOOGLE DRIVE
       if (subCommand === 'connect') {
         const alreadyLinked = await VfsService.isConnected(currentUser.id);
         if (alreadyLinked) {
-          return '\x1b[32m[WFS SUCCESS]: Google Drive is already linked and active on this profile.\x1b[0m';
+          return { output: '\x1b[32m[WFS SUCCESS]: Google Drive is already linked and active on this profile.\x1b[0m' };
         }
       
-        // Generate a URL. Since this is a backend, the method will immediately create a link with state=currentUser.id
         const authUrl = VfsService.generateAuthUrl(currentUser.id);
-      
-        // We return a special initialization marker to the frontend
-        return `__WFS_OAUTH_INIT:${authUrl}__`;
+        return { output: `__WFS_OAUTH_INIT:${authUrl}__` };
+      }
+
+      // Safeguard: Check for connection before processing active storage commands
+      const linked = await VfsService.isConnected(currentUser.id);
+      if (!linked) {
+        return { output: '\x1b[31m[WFS ERROR]: Google Drive not linked. Please execute "wfs connect" first.\x1b[0m' };
+      }
+
+      // 2. DIRECTORY AUDIT (LIST FILES)
+      if (subCommand === 'ls') {
+        try {
+          const filesOutput = await VfsService.ls(currentUser.id, currentDirId);
+          return { output: filesOutput };
+        } catch (error: any) {
+          return { output: `\x1b[31m[WFS ERROR]: Failed to fetch file structure: ${error.message}\x1b[0m` };
+        }
+      }
+
+      // 3. FILE CAT (VIEW CONTENT)
+      if (subCommand === 'cat') {
+        const fileId = args[2];
+        if (!fileId) {
+          return { output: '\x1b[31mUsage: wfs cat <file_id_or_name>\x1b[0m' };
+        }
+        try {
+          const userObjectId = new Types.ObjectId(currentUser.id);
+          
+          let query: any = { userId: userObjectId, type: 'file' };
+          if (Types.ObjectId.isValid(fileId)) {
+            query._id = new Types.ObjectId(fileId);
+          } else {
+            query.name = fileId;
+            query.parentId = currentDirId ? new Types.ObjectId(currentDirId) : null;
+          }
+
+          const fileNode = await VfsNodeModel.findOne(query);
+          if (!fileNode) {
+            return { output: `\x1b[31m[WFS ERROR]: File [${fileId}] not found.\x1b[0m` };
+          }
+
+          return { output: fileNode.content || '\x1b[90m(file is empty)\x1b[0m' };
+        } catch (error: any) {
+          return { output: `\x1b[31m[WFS ERROR]: Failed to read file [${fileId}]: ${error.message}\x1b[0m` };
+        }
+      }
+
+      // 4. PURGE ASSET (REMOVE FILE)
+      if (subCommand === 'rm') {
+        const fileId = args[2];
+        if (!fileId) {
+          return { output: '\x1b[31mUsage: wfs rm <file_id_or_name>\x1b[0m' };
+        }
+        try {
+          const userObjectId = new Types.ObjectId(currentUser.id);
+          
+          let query: any = { userId: userObjectId };
+          if (Types.ObjectId.isValid(fileId)) {
+            query._id = new Types.ObjectId(fileId);
+          } else {
+            query.name = fileId;
+            query.parentId = currentDirId ? new Types.ObjectId(currentDirId) : null;
+          }
+
+          const targetNode = await VfsNodeModel.findOne(query);
+          if (!targetNode) {
+            return { output: `\x1b[31m[WFS ERROR]: Asset [${fileId}] not found.\x1b[0m` };
+          }
+
+          await VfsNodeModel.deleteOne({ _id: targetNode._id });
+          return { output: `\x1b[32m[WFS SUCCESS]: Asset [${targetNode.name}] successfully purged from cloud storage.\x1b[0m` };
+        } catch (error: any) {
+          return { output: `\x1b[31m[WFS ERROR]: Failed to delete asset: ${error.message}\x1b[0m` };
+        }
+      }
+
+      // 5. STORAGE TELEMETRY (DISK USAGE)
+      if (subCommand === 'df') {
+        try {
+          const userObjectId = new Types.ObjectId(currentUser.id);
+          const nodes = await VfsNodeModel.find({ userId: userObjectId });
+          
+          let estimatedBytes = 0;
+          nodes.forEach(node => {
+            estimatedBytes += Buffer.byteLength(node.name || '') + Buffer.byteLength(node.content || '');
+          });
+
+          const usedMB = (estimatedBytes / (1024 * 1024)).toFixed(4);
+          const limitMB = "15.00";
+          
+          return { 
+            output: `\x1b[36m[WFS CLOUD METRICS]\x1b[0m\n` +
+                    `  Estimated DB Usage:  ${usedMB} MB\n` +
+                    `  Virtual Limit:       ${limitMB} GB\n` +
+                    `  Connection Status:   Stable (G-Drive OAuth2 Active)`
+          };
+        } catch (error: any) {
+          return { output: `\x1b[31m[WFS ERROR]: Could not fetch telemetry: ${error.message}\x1b[0m` };
+        }
+      }
+
+      // 6. UPLOAD ASSET (TRIGGERS FRONTEND UPLOAD DIALOG)
+      if (subCommand === 'upload') {
+        return { output: `__WFS_UPLOAD_INIT:${currentDirId || 'root'}__` };
       }
     
-      return `\x1b[31mcore-sh: Unknown wfs subcommand: ${subCommand}\x1b[0m`;
+      return { output: `\x1b[31mcore-sh: Unknown wfs subcommand: ${subCommand}\x1b[0m` };
     }
 
     // --- LEVEL 2: MODERATOR AND ADMINISTRATOR TEAMS ---
     if (cmd === 'users') {
       if (currentUser.role !== 'admin' && currentUser.role !== 'moderator') {
-        return '\x1b[31mcore-sh: Permission denied. You need to be a Moderator or Admin.\x1b[0m';
+        return { output: '\x1b[31mcore-sh: Permission denied. You need to be a Moderator or Admin.\x1b[0m' };
       }
 
       const users = await UserModel.find().limit(10).select('name email role status');
@@ -146,23 +292,23 @@ export class ShService {
         const color = u.status === 'banned' ? '\x1b[31m' : '\x1b[32m';
         result += `- ${u.name} [${u.email}] | Role: ${u.role} | Status: ${color}${u.status}\x1b[0m\n`;
       });
-      return result.trim();
+      return { output: result.trim() };
     }
 
     if (cmd === 'ban') {
       if (currentUser.role !== 'admin') {
-        return '\x1b[31mcore-sh: Permission denied. This is a critical command. Critical actions are restricted for your role.\x1b[0m';
+        return { output: '\x1b[31mcore-sh: Permission denied. This is a critical command. Critical actions are restricted for your role.\x1b[0m' };
       }
 
       const targetEmail = args[1];
       if (!targetEmail) {
-        return '\x1b[31mUsage: ban <email>\x1b[0m';
+        return { output: '\x1b[31mUsage: ban <email>\x1b[0m' };
       }
 
       const targetUser = await UserModel.findOne({ email: targetEmail.toLowerCase() });
-      if (!targetUser) return '\x1b[31mError: User not found.\x1b[0m';
+      if (!targetUser) return { output: '\x1b[31mError: User not found.\x1b[0m' };
       if (targetUser._id.toString() === currentUser.id) {
-        return '\x1b[31mError: You cannot ban yourself.\x1b[0m';
+        return { output: '\x1b[31mError: You cannot ban yourself.\x1b[0m' };
       }
 
       targetUser.status = 'banned';
@@ -170,26 +316,28 @@ export class ShService {
 
       await tokenModel.deleteMany({ userID: targetUser._id as any });
 
-      return `\x1b[32mSuccess: User [${targetEmail}] has been banned. Active sessions terminated.\x1b[0m`;
+      return { output: `\x1b[32mSuccess: User [${targetEmail}] has been banned. Active sessions terminated.\x1b[0m` };
     }
 
     // --- LEVEL 3: ADMIN TOOL SUITE ---
     if (cmd === 'admin') {
       if (currentUser.role !== 'admin') {
-        return '\x1b[31mcore-sh: Access denied. Root administration privileges required.\x1b[0m';
+        return { output: '\x1b[31mcore-sh: Access denied. Root administration privileges required.\x1b[0m' };
       }
 
       const subCommand = args[1]?.toLowerCase();
 
       if (!subCommand || subCommand === 'help') {
-        return 'Web OS Core Admin Engine:\n' +
-               '  admin user delete <email>     - Force completely erase a user account\n' +
-               '  admin user role <email> <role>- Modify account access levels (user/moderator/admin)\n' +
-               '  admin product list            - Show catalog files data items mapped in DB\n' +
-               '  admin product add <name> <pr> - Register new deployment resource into storage\n' +
-               '  admin product rm <id>         - Purge commercial item from data collection\n' +
-               '  admin system backup [memo]    - Save instant snapshot architecture into logs\n' +
-               '  admin system rollback <id>    - Wipe and overwrite cluster state to snapshot';
+        return {
+          output: 'Web OS Core Admin Engine:\n' +
+                 '  admin user delete <email>     - Force completely erase a user account\n' +
+                 '  admin user role <email> <role>- Modify account access levels (user/moderator/admin)\n' +
+                 '  admin product list            - Show catalog files data items mapped in DB\n' +
+                 '  admin product add <name> <pr> - Register new deployment resource into storage\n' +
+                 '  admin product rm <id>         - Purge commercial item from data collection\n' +
+                 '  admin system backup [memo]    - Save instant snapshot architecture into logs\n' +
+                 '  admin system rollback <id>    - Wipe and overwrite cluster state to snapshot'
+        };
       }
 
       // Context branch: Admin operations over user entities
@@ -197,28 +345,28 @@ export class ShService {
         const action = args[2]?.toLowerCase();
         const email = args[3]?.toLowerCase();
 
-        if (!email) return '\x1b[31mError: Targeted user email configuration parameter missing.\x1b[0m';
+        if (!email) return { output: '\x1b[31mError: Targeted user email configuration parameter missing.\x1b[0m' };
 
         const targetUser = await UserModel.findOne({ email });
-        if (!targetUser) return '\x1b[31mError: Target identity profile records not found.\x1b[0m';
+        if (!targetUser) return { output: '\x1b[31mError: Target identity profile records not found.\x1b[0m' };
 
         if (action === 'delete') {
           if (targetUser._id.toString() === currentUser.id) {
-            return '\x1b[31mError: Administrative override failed. Cannot execute self-destruction.\x1b[0m';
+            return { output: '\x1b[31mError: Administrative override failed. Cannot execute self-destruction.\x1b[0m' };
           }
           await tokenModel.deleteMany({ userID: targetUser._id as any });
           await UserModel.findByIdAndDelete(targetUser._id);
-          return `\x1b[32mRoot Action Complete: User account [${email}] permanently wiped from DB.\x1b[0m`;
+          return { output: `\x1b[32mRoot Action Complete: User account [${email}] permanently wiped from DB.\x1b[0m` };
         }
 
         if (action === 'role') {
           const targetRole = args[4]?.toLowerCase() as 'user' | 'moderator' | 'admin';
           if (targetRole !== 'user' && targetRole !== 'moderator' && targetRole !== 'admin') {
-            return '\x1b[31mError: Invalid context role target. Choose user, moderator, or admin.\x1b[0m';
+            return { output: '\x1b[31mError: Invalid context role target. Choose user, moderator, or admin.\x1b[0m' };
           }
           targetUser.role = targetRole;
           await targetUser.save();
-          return `\x1b[32mRoot Action Complete: User [${email}] role altered to [${targetRole}].\x1b[0m`;
+          return { output: `\x1b[32mRoot Action Complete: User [${email}] role altered to [${targetRole}].\x1b[0m` };
         }
       }
 
@@ -229,30 +377,29 @@ export class ShService {
         // Sub-route: admin product list (REAL DATABASE VIEW)
         if (action === 'list') {
           const products = await productModel.find().limit(15);
-          if (products.length === 0) return 'Warehouse storage is completely empty.';
+          if (products.length === 0) return { output: 'Warehouse storage is completely empty.' };
           
           let listResult = 'Current Active Product Catalog:\n';
           products.forEach((p: any) => {
             listResult += `  ID: \x1b[33m${p._id}\x1b[0m | Name: ${p.name} | Price: \x1b[32m$${p.price || 0}\x1b[0m | Stock: ${p.stock ?? 0}\n`;
           });
-          return listResult.trim();
+          return { output: listResult.trim() };
         }
 
-        // Sub-route: admin product add (REAL MONGODB WRITE - ALIGNED WITH YOUR SCHEMA)
+        // Sub-route: admin product add
         if (action === 'add') {
           const productName = args[3];
           const productPriceRaw = args[4];
           
           if (!productName || !productPriceRaw) {
-            return '\x1b[31mUsage: admin product add <name> <price_number>\x1b[0m';
+            return { output: '\x1b[31mUsage: admin product add <name> <price_number>\x1b[0m' };
           }
 
           const parsedPrice = parseFloat(productPriceRaw);
           if (isNaN(parsedPrice)) {
-            return '\x1b[31mError: Price parameter must be a valid number.\x1b[0m';
+            return { output: '\x1b[31mError: Price parameter must be a valid number.\x1b[0m' };
           }
           
-          // Creating the asset fully satisfying your required schema fields
           await productModel.create({ 
             name: productName, 
             price: parsedPrice,
@@ -261,19 +408,19 @@ export class ShService {
             stock: 5                                                   
           });
           
-          return `\x1b[32mCatalog Updated: Product asset "${productName}" successfully saved to MongoDB.\x1b[0m`;
+          return { output: `\x1b[32mCatalog Updated: Product asset "${productName}" successfully saved to MongoDB.\x1b[0m` };
         }
 
-        // Sub-route: admin product rm (REAL MONGODB DELETE)
+        // Sub-route: admin product rm
         if (action === 'rm') {
           const productId = args[3];
-          if (!productId) return '\x1b[31mUsage: admin product rm <product_database_id>\x1b[0m';
+          if (!productId) return { output: '\x1b[31mUsage: admin product rm <product_database_id>\x1b[0m' };
           
           const target = await productModel.findById(productId);
-          if (!target) return '\x1b[31mError: Product asset not found in database records.\x1b[0m';
+          if (!target) return { output: '\x1b[31mError: Product asset not found in database records.\x1b[0m' };
 
           await productModel.findByIdAndDelete(productId);
-          return `\x1b[32mCatalog Updated: Product asset "${productId}" evicted from system files.\x1b[0m`;
+          return { output: `\x1b[32mCatalog Updated: Product asset "${productId}" evicted from system files.\x1b[0m` };
         }
       }
 
@@ -297,18 +444,20 @@ export class ShService {
             productsData: currentProducts
           });
 
-          return `\x1b[32m[SYSTEM SUCCESS]: Snapshot [${generatedId}] committed to safe storage.\x1b[0m\n` +
-                 `  - Users backed up: ${currentUsers.length}\n` +
-                 `  - Products backed up: ${currentProducts.length}`;
+          return {
+            output: `\x1b[32m[SYSTEM SUCCESS]: Snapshot [${generatedId}] committed to safe storage.\x1b[0m\n` +
+                   `  - Users backed up: ${currentUsers.length}\n` +
+                   `  - Products backed up: ${currentProducts.length}`
+          };
         }
 
         // 2. ROLLBACK TO SNAPSHOT (DANGER ZONE)
         if (action === 'rollback') {
           const targetSnapId = args[3];
-          if (!targetSnapId) return '\x1b[31mUsage: admin system rollback <snapshot_id>\x1b[0m';
+          if (!targetSnapId) return { output: '\x1b[31mUsage: admin system rollback <snapshot_id>\x1b[0m' };
 
           const snapshot = await backupModel.findOne({ snapshotId: targetSnapId });
-          if (!snapshot) return `\x1b[31mError: Snapshot [${targetSnapId}] not found in records.\x1b[0m`;
+          if (!snapshot) return { output: `\x1b[31mError: Snapshot [${targetSnapId}] not found in records.\x1b[0m` };
 
           // CRITICAL OVERWRITE PROCESS
           await UserModel.deleteMany({});
@@ -321,17 +470,19 @@ export class ShService {
             await productModel.insertMany(snapshot.productsData);
           }
 
-          return `\x1b[35m[SYSTEM RESTORED]: Infrastructure rolled back to state [${targetSnapId}] successfully.\x1b[0m\n` +
-                 `Database synchronized to date: ${snapshot.createdAt.toISOString()}`;
+          return {
+            output: `\x1b[35m[SYSTEM RESTORED]: Infrastructure rolled back to state [${targetSnapId}] successfully.\x1b[0m\n` +
+                   `Database synchronized to date: ${snapshot.createdAt.toISOString()}`
+          };
         }
         
-        return '\x1b[31mUsage: admin system <backup [memo] | rollback [id]>\x1b[0m';
+        return { output: '\x1b[31mUsage: admin system <backup [memo] | rollback [id]>\x1b[0m' };
       }
 
-      return '\x1b[31mcore-sh: Unknown core administration subcommand pipeline.\x1b[0m';
+      return { output: '\x1b[31mcore-sh: Unknown core administration subcommand pipeline.\x1b[0m' };
     }
 
-    return `\x1b[31mcore-sh: command not found: ${cmd}\x1b[0m`;
+    return { output: `\x1b[31mcore-sh: command not found: ${cmd}\x1b[0m` };
   }
 }
 

@@ -7,12 +7,12 @@ export class ShController {
 
   async handleCommand(req: Request, res: Response) {
         try {
-            const { command } = req.body;
+            const { command, currentDirId } = req.body;
             const currentUser = res.locals.user; 
 
-            const output = await shService.executeCommand(command, currentUser);
+            const result = await shService.executeCommand(command, currentUser, currentDirId);
 
-            if (output === '__LOGOUT_USER__') {
+            if (result.output === '__LOGOUT_USER__') {
                 try {
                     await tokenModel.deleteMany({ userID: currentUser.id }); 
 
@@ -22,7 +22,7 @@ export class ShController {
                 }
             }
 
-            return res.status(200).json({ output });
+            return res.status(200).json(result);
         } catch (error) {
             return res.status(400).json({ error: "Shell error" });
         }
@@ -70,16 +70,16 @@ export class ShController {
    */
   public async handleTerminalInput(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { command } = req.body;
+      const { command, currentDirId } = req.body;
     
       if (command === undefined) {
         res.status(400).json({ error: 'Command field is required' });
         return;
       }
   
-      const output = await shService.executeCommand(command, req.user);
+      const result = await shService.executeCommand(command, req.user, currentDirId);
   
-      res.json({ output });
+      res.json(result);
     } catch (error) {
       next(error);
     }

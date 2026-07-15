@@ -1,3 +1,4 @@
+/* Core Xterm styles without duplicating font-face declarations */
 .xterm {
     cursor: text;
     position: relative;
@@ -36,8 +37,8 @@
     display: block;
 }
 .xterm .xterm-viewport {
-    background-color: #000;
-    overflow-y: scroll;
+    background-color: #000000 !important;
+    overflow-y: hidden !important; /* Hides modern scrollbar to keep it pure TTY */
     cursor: default;
     position: absolute;
     right: 0;
@@ -68,18 +69,4 @@
 .xterm.focus,
 .xterm:focus {
     outline: none;
-}
-
-#term-line-input {
-    background: transparent !important;   
-    border: none !important;              
-    outline: none !important;             
-    box-shadow: none !important;          
-    color: #f1f5f9 !important;            
-    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace !important;
-    font-size: 14px !important;
-    padding: 0 !important;
-    margin: 0 0 0 4px !important;         
-    width: 70% !important;
-    caret-color: #3b82f6 !important; 
 }
