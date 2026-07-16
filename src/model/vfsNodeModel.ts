@@ -9,6 +9,7 @@ export interface IVfsNode {
 
     // CRITICAL FIELDS FOR CONNECTION WITH GOOGLE DRIVE
     googleFileId : string | null;               // ID from node(file/dir) on google drive (if synced)
+    gdriveId?: string | null;
     isSynced : boolean;                         // flag for syncing with cloud storage
 
     createdAt : Date;
@@ -25,6 +26,7 @@ const VfsNodeSchema = new Schema<IVfsNodeDocument>({
     content : { type : String, default : '' },
 
     googleFileId : { type : String, default : null },
+    gdriveId : { type : String, default : null },
     isSynced : { type : Boolean, default : false }
 }, { timestamps : true });
 

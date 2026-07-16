@@ -75,9 +75,13 @@ const userSchema = new Schema<IUserDocument>(
       type: String,
       required: [true, 'Password is required'],
       validate: {
-        validator: function (v: string) {
-          return passwordRegex.test(v);
-        },
+        validator: function(this: any, value: string) {
+        if (this && typeof this.isModified === 'function' && !this.isModified('password')) {
+          return true;
+        }
+
+        return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(value);
+      },
         message:
           'The password is too weak! It must be at least 8 characters long and contain an uppercase letter, a lowercase letter, a number, and a special character (@$!%*?&).'
       }

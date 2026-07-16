@@ -23,13 +23,35 @@ export class ShService {
       return { output: '\x1b[31mcore-sh: Unauthorized access.\x1b[0m' };
     }
 
-    const args = rawCommand.trim().split(/\s+/);
+    const trimmed = rawCommand.trim();
+
+    // --- Intercepting REDIRECTION (echo "hello" > file.txt) ---
+    if (trimmed.startsWith('echo ') && trimmed.includes('>')) {
+      const parts = trimmed.split('>');
+      const echoContentRaw = parts[0].substring(5).trim();
+      const targetFileName = parts[1].trim();
+
+      // Strip quotes if present around the echo text
+      const content = echoContentRaw.replace(/^["']|["']$/g, '');
+
+      if (!targetFileName) {
+        return { output: '\x1b[31mSyntax error: No output file specified after \'>\'\x1b[0m' };
+      }
+
+      try {
+        const echoResult = await VfsService.writeFileContent(currentUser.id, targetFileName, currentDirId, content);
+        return { output: echoResult };
+      } catch (error: any) {
+        return { output: `\x1b[31m[ERROR]: echo failed: ${error.message}\x1b[0m` };
+      }
+    }
+
+    const args = trimmed.split(/\s+/);
     const cmd = args[0].toLowerCase();
 
     // --- LEVEL 1: PUBLIC COMMANDS ---
     switch (cmd) {
       case 'help':
-        // Base system documentation available to all authenticated operators
         let helpText = 
           '\x1b[36m=================== WEB OS CORE SYSTEM MANUAL ===================\x1b[0m\n\n' +
           '\x1b[33m[ PUBLIC SUBSYSTEM COMMANDS ]\x1b[0m\n' +
@@ -39,11 +61,18 @@ export class ShService {
           '  \x1b[32mclear\x1b[0m              - Wipe the current terminal viewport memory buffer.\n' +
           '  \x1b[32mlogout\x1b[0m             - Securely terminate session access tokens and clear cookie storage.\n' +
           '  \x1b[32mvisit <path>\x1b[0m       - Fast-travel UI engine route controller execution.\n' +
-          '                       \x1b[90mExample: visit /profile\x1b[0m\n' +
           '  \x1b[32mrmaccount\x1b[0m          - Initiate secure identity destruction guidance guidelines.\n' +
-          '  \x1b[32mexit\x1b[0m          - Shutdown the terminal view session.\n';
+          '  \x1b[32mexit\x1b[0m               - Shutdown the terminal view session.\n\n' +
+          '\x1b[33m[ VIRTUAL FILE SYSTEM COMMANDS ]\x1b[0m\n' +
+          '  \x1b[32mpwd\x1b[0m                - Display absolute path of the current directory.\n' +
+          '  \x1b[32mls\x1b[0m                 - List files and sub-folders in current directory.\n' +
+          '  \x1b[32mcd <path>\x1b[0m          - Navigate into folder directory.\n' +
+          '  \x1b[32mmkdir <name>\x1b[0m       - Create a new folder directory in local cache.\n' +
+          '  \x1b[32mtouch <name>\x1b[0m       - Create an empty virtual file.\n' +
+          '  \x1b[32mcat <name>\x1b[0m         - Stream file contents to standard output.\n' +
+          '  \x1b[32mrm <name>\x1b[0m          - Permanently erase a file or directory.\n' +
+          '  \x1b[32mecho "txt" > file\x1b[0m  - Write text string directly into selected file.\n';
         
-        // Elevated administration manual injected dynamically based on security tokens
         if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
           helpText += 
             '\n\x1b[35m[ ELEVATED PRIVILEGE COMMANDS ]\x1b[0m\n' +
@@ -51,18 +80,9 @@ export class ShService {
             
           if (currentUser.role === 'admin') {
             helpText +=
-              '  \x1b[32mban <email>\x1b[0m        - Force-isolate malicious actor email and invalidate active access tokens.\n' +
-              '                       \x1b[90mExample: ban user@target.io\x1b[0m\n\n' +
+              '  \x1b[32mban <email>\x1b[0m        - Force-isolate malicious actor email and invalidate active access tokens.\n\n' +
               '\x1b[31m[ ROOT ADMINISTRATION ENGINE (admin subcommands) ]\x1b[0m\n' +
-              '  \x1b[34madmin\x1b[0m              - Access comprehensive root administrative pipeline controls.\n' +
-              '  \x1b[34madmin user delete <email>\x1b[0m    - Completely erase a user account record from database stores.\n' +
-              '  \x1b[34madmin user role <email> <r>\x1b[0m  - Overwrite account privilege access mapping.\n' +
-              '                                 \x1b[90mRoles: user | moderator | admin\x1b[0m\n' +
-              '  \x1b[34madmin product list\x1b[0m           - Fetch and display warehouse commercial storage items.\n' +
-              '  \x1b[34madmin product add <n> <price>\x1b[0m- Append unique deployment commercial assets into warehouse storage.\n' +
-              '  \x1b[34madmin product rm <db_id>\x1b[0m     - Purge commercial item from web store catalogues.\n' +
-              '  \x1b[34madmin system backup [memo]\x1b[0m   - Save instant core data snapshot architecture into safety logs.\n' +
-              '  \x1b[34madmin system rollback <id>\x1b[0m   - Wipe database layers and restore full cluster state to snapshot.\n';
+              '  \x1b[34madmin\x1b[0m              - Access comprehensive root administrative pipeline controls.\n';
           }
         }
         
@@ -86,7 +106,7 @@ export class ShService {
         return { output: '__LOGOUT_USER__' };
 
       case 'rmaccount':
-        return { output: 'Please visit /profile to safely and delete your account.' };
+        return { output: 'Please visit /profile to safely delete your account.' };
 
       case 'visit':
         const endpoint = args[1];
@@ -131,6 +151,42 @@ export class ShService {
           return { output: mkdirResult };
         } catch (error: any) {
           return { output: `\x1b[31m[ERROR]: mkdir failed: ${error.message}\x1b[0m` };
+        }
+
+      case 'touch':
+        const fileName = args[1];
+        if (!fileName) {
+          return { output: '\x1b[31mUsage: touch <filename>\x1b[0m' };
+        }
+        try {
+          const touchResult = await VfsService.touch(currentUser.id, fileName, currentDirId);
+          return { output: touchResult };
+        } catch (error: any) {
+          return { output: `\x1b[31m[ERROR]: touch failed: ${error.message}\x1b[0m` };
+        }
+
+      case 'cat':
+        const fileToRead = args[1];
+        if (!fileToRead) {
+          return { output: '\x1b[31mUsage: cat <filename>\x1b[0m' };
+        }
+        try {
+          const catResult = await VfsService.cat(currentUser.id, currentDirId, fileToRead);
+          return { output: catResult };
+        } catch (error: any) {
+          return { output: `\x1b[31m[ERROR]: cat failed: ${error.message}\x1b[0m` };
+        }
+
+      case 'rm':
+        const targetToRemove = args[1];
+        if (!targetToRemove) {
+          return { output: '\x1b[31mUsage: rm <file_or_folder_name>\x1b[0m' };
+        }
+        try {
+          const rmResult = await VfsService.rm(currentUser.id, currentDirId, targetToRemove);
+          return { output: rmResult };
+        } catch (error: any) {
+          return { output: `\x1b[31m[ERROR]: rm failed: ${error.message}\x1b[0m` };
         }
 
       case 'ls':
@@ -194,25 +250,11 @@ export class ShService {
       if (subCommand === 'cat') {
         const fileId = args[2];
         if (!fileId) {
-          return { output: '\x1b[31mUsage: wfs cat <file_id_or_name>\x1b[0m' };
+          return { output: '\x1b[31mUsage: wfs cat <file_name>\x1b[0m' };
         }
         try {
-          const userObjectId = new Types.ObjectId(currentUser.id);
-          
-          let query: any = { userId: userObjectId, type: 'file' };
-          if (Types.ObjectId.isValid(fileId)) {
-            query._id = new Types.ObjectId(fileId);
-          } else {
-            query.name = fileId;
-            query.parentId = currentDirId ? new Types.ObjectId(currentDirId) : null;
-          }
-
-          const fileNode = await VfsNodeModel.findOne(query);
-          if (!fileNode) {
-            return { output: `\x1b[31m[WFS ERROR]: File [${fileId}] not found.\x1b[0m` };
-          }
-
-          return { output: fileNode.content || '\x1b[90m(file is empty)\x1b[0m' };
+          const catResult = await VfsService.cat(currentUser.id, currentDirId, fileId);
+          return { output: catResult };
         } catch (error: any) {
           return { output: `\x1b[31m[WFS ERROR]: Failed to read file [${fileId}]: ${error.message}\x1b[0m` };
         }
@@ -222,26 +264,11 @@ export class ShService {
       if (subCommand === 'rm') {
         const fileId = args[2];
         if (!fileId) {
-          return { output: '\x1b[31mUsage: wfs rm <file_id_or_name>\x1b[0m' };
+          return { output: '\x1b[31mUsage: wfs rm <file_name_or_folder>\x1b[0m' };
         }
         try {
-          const userObjectId = new Types.ObjectId(currentUser.id);
-          
-          let query: any = { userId: userObjectId };
-          if (Types.ObjectId.isValid(fileId)) {
-            query._id = new Types.ObjectId(fileId);
-          } else {
-            query.name = fileId;
-            query.parentId = currentDirId ? new Types.ObjectId(currentDirId) : null;
-          }
-
-          const targetNode = await VfsNodeModel.findOne(query);
-          if (!targetNode) {
-            return { output: `\x1b[31m[WFS ERROR]: Asset [${fileId}] not found.\x1b[0m` };
-          }
-
-          await VfsNodeModel.deleteOne({ _id: targetNode._id });
-          return { output: `\x1b[32m[WFS SUCCESS]: Asset [${targetNode.name}] successfully purged from cloud storage.\x1b[0m` };
+          const rmResult = await VfsService.rm(currentUser.id, currentDirId, fileId);
+          return { output: rmResult };
         } catch (error: any) {
           return { output: `\x1b[31m[WFS ERROR]: Failed to delete asset: ${error.message}\x1b[0m` };
         }
